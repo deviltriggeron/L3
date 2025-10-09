@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	e "notifier/internal/entity"
 	s "notifier/internal/service"
@@ -20,15 +21,17 @@ func NewNotifierHandler(svc *s.NotifierService) *NotifierHandler {
 }
 
 func (h *NotifierHandler) CreateNotify(w http.ResponseWriter, r *http.Request) {
-	var notify e.Notification
+	var notify e.NotifierHandle
 	if err := json.NewDecoder(r.Body).Decode(&notify); err != nil {
-		http.Error(w, "notify cannot create", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
-	h.svc.NewNotification(notify)
+
+	created := h.svc.NewNotification(notify)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"Notify succesfully create ID": notify.ID,
+	json.NewEncoder(w).Encode(map[string]int{
+		"Notify succesfully create, ID": created.ID,
 	})
 }
 
@@ -38,12 +41,13 @@ func (h *NotifierHandler) GetNotifyStatus(w http.ResponseWriter, r *http.Request
 
 	status, err := h.svc.GetStatus(id)
 	if err != nil {
-		json.NewEncoder(w).Encode(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		id: status,
+		fmt.Sprintf("Notify status %s", id): status,
 	})
 }
 
@@ -53,11 +57,10 @@ func (h *NotifierHandler) DeleteNotify(w http.ResponseWriter, r *http.Request) {
 
 	err := h.svc.DeleteNotify(id)
 	if err != nil {
-		json.NewEncoder(w).Encode(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		id: "deleted",
-	})
+	json.NewEncoder(w).Encode(fmt.Sprintf("Notify %s deleted", id))
 }

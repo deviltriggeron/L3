@@ -10,9 +10,14 @@ const (
 )
 
 type Notification struct {
-	ID       int       `json:"id"`
-	Message  string    `json:"message"`
-	SendAt   time.Time `json:"send_at"`
-	Status   string    `json:"status"`
-	Attempts int       `json:"attempts"`
+	ID       int
+	Message  string
+	SendAt   time.Time
+	Status   string
+	Attempts int
+}
+
+type NotifierHandle struct {
+	Message string    `json:"message"`
+	SendAt  time.Time `json:"send_at"`
 }

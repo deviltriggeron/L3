@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	h "notifier/internal/handler"
-	r "notifier/internal/router"
-	s "notifier/internal/service"
+	"notifier/internal/handler"
+	"notifier/internal/router"
+	"notifier/internal/service"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -19,9 +19,10 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	svc := s.NewNotifierService()
-	handler := h.NewNotifierHandler(svc)
-	router := r.NewRouter(*handler)
+	svc := service.NewNotifierService()
+	handler := handler.NewNotifierHandler(svc)
+	router := router.NewRouter(*handler)
+
 	srv := http.Server{
 		Addr:    ":8080",
 		Handler: router,
