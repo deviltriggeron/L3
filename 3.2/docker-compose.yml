@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:15
+    env_file: config.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d
+      - db_data:/var/lib/postgresql/data
+    stop_grace_period: 3s
+
+  app:
+    build: .
+    env_file: config.env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    stop_grace_period: 5s
+
+volumes:
+  db_data:
