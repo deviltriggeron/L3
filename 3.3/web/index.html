@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Комментарии</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f9f9fb;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .comment {
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .comment strong {
+            font-weight: bold;
+        }
+
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 5px;
+            margin-right: 5px;
+        }
+
+        .button:hover {
+            background: #0056b3;
+        }
+
+        .delete-button {
+            background: #dc3545;
+        }
+
+        .delete-button:hover {
+            background: #a71d2a;
+        }
+
+        .comment-time {
+            color: gray;
+            font-size: 0.85em;
+            display: block;
+            margin-top: 3px;
+        }
+
+        .replies {
+            margin-top: 10px;
+        }
+
+        .reply-form {
+            margin-top: 10px;
+            background: #f0f0f5;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .reply-form input,
+        .reply-form textarea {
+            width: 100%;
+            margin-bottom: 5px;
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Комментарии</h1>
+
+    <div>
+        <input id="username" placeholder="Ваше имя" style="width:100%;margin-bottom:8px;padding:5px;">
+        <textarea id="commentText" placeholder="Ваш комментарий..."
+            style="width:100%;height:60px;margin-bottom:8px;padding:5px;"></textarea>
+        <button id="submitBtn" class="button">Отправить</button>
+    </div>
+
+    <div style="margin-top:10px;">
+        <input id="searchInput" placeholder="Поиск комментариев..." style="width:100%;padding:5px;">
+    </div>
+
+    <div id="commentsContainer">
+        <p>Загрузка...</p>
+    </div>
+
+    <script>
+        const commentsContainer = document.getElementById('commentsContainer');
+        let allComments = [];
+
+        async function loadComments() {
+            const res = await fetch('/allComments');
+            allComments = await res.json();
+            renderFilteredComments();
+        }
+
+        function renderFilteredComments() {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+            const filtered = filterComments(allComments, query);
+            commentsContainer.innerHTML = '';
+            renderComments(filtered, commentsContainer, 0);
+        }
+
+        function filterComments(comments, query) {
+            if (!query) return comments;
+            const result = [];
+            comments.forEach(c => {
+                const filteredReplies = c.Replies ? filterComments(c.Replies, query) : [];
+                if (c.UserName.toLowerCase().includes(query) ||
+                    c.Comment.toLowerCase().includes(query) ||
+                    filteredReplies.length > 0) {
+                    result.push({ ...c, Replies: filteredReplies });
+                }
+            });
+            return result;
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleString('ru-RU', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function renderComments(comments, container, level) {
+            if (!comments || comments.length === 0) {
+                container.innerHTML = '<p>Комментариев нет</p>';
+                return;
+            }
+
+            comments.forEach(c => {
+                const div = document.createElement('div');
+                div.className = 'comment';
+                div.style.marginLeft = `${20 * level}px`;
+                div.innerHTML = `
+          <strong>${c.UserName}:</strong> ${c.Comment}
+          <span class="comment-time">${formatDate(c.Date)}</span>
+        `;
+
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'button toggle-replies';
+                toggleBtn.textContent = '💬';
+                toggleBtn.addEventListener('click', () => toggleReplies(toggleBtn, c.CommentID, level));
+                div.appendChild(toggleBtn);
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'button delete-button';
+                delBtn.textContent = '🗑️';
+                delBtn.addEventListener('click', () => deleteComment(c.CommentID));
+                div.appendChild(delBtn);
+
+                if (level === 0) {
+                    addReplyForm(div, c.CommentID, level, true);
+                } else {
+                    const replyBtn = document.createElement('button');
+                    replyBtn.className = 'button reply-button';
+                    replyBtn.textContent = 'Ответить';
+                    replyBtn.addEventListener('click', () => addReplyForm(div, c.CommentID, level, false));
+                    div.appendChild(replyBtn);
+                }
+
+                container.appendChild(div);
+            });
+        }
+
+        async function deleteComment(commentId) {
+            if (!confirm('Удалить комментарий?')) return;
+
+            const res = await fetch(`/comments/${commentId}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadComments();
+            } else {
+                alert('Ошибка при удалении комментария');
+            }
+        }
+
+        async function toggleReplies(button, commentId, level) {
+            const existing = button.parentElement.querySelector('.replies');
+            if (existing) {
+                existing.remove();
+                button.textContent = '💬';
+                return;
+            }
+
+            button.textContent = 'Скрыть';
+            const res = await fetch(`/comments?parent=${commentId}`);
+            if (!res.ok) return;
+
+            const replies = await res.json();
+            const repliesContainer = document.createElement('div');
+            repliesContainer.className = 'replies';
+            repliesContainer.style.marginLeft = `${20 * (level + 1)}px`;
+            renderComments(replies, repliesContainer, level + 1);
+            button.parentElement.appendChild(repliesContainer);
+        }
+
+        function addReplyForm(parentDiv, parentId, level, isCompact) {
+            if (parentDiv.querySelector('.reply-form')) return;
+
+            const form = document.createElement('div');
+            form.className = 'reply-form';
+            form.style.width = isCompact ? '20%' : '100%';
+            form.innerHTML = `
+        <input type="text" placeholder="Ваше имя" class="reply-name">
+        <textarea placeholder="Ваш комментарий" class="reply-text"></textarea>
+        <button class="button send-reply">Отправить</button>
+      `;
+            parentDiv.appendChild(form);
+
+            const sendBtn = form.querySelector('.send-reply');
+            sendBtn.addEventListener('click', async () => {
+                const name = form.querySelector('.reply-name').value.trim();
+                const text = form.querySelector('.reply-text').value.trim();
+                if (!name || !text) return alert('Введите имя и текст комментария');
+
+                const res = await fetch('/comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ UserName: name, Comment: text, ParentID: parentId })
+                });
+
+                if (!res.ok) {
+                    alert('Ошибка при добавлении комментария');
+                    return;
+                }
+
+                loadComments();
+            });
+        }
+
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            const username = document.getElementById('username').value.trim();
+            const commentText = document.getElementById('commentText').value.trim();
+            if (!username || !commentText) return alert('Введите имя и комментарий');
+
+            const res = await fetch('/comments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ UserName: username, Comment: commentText })
+            });
+
+            if (res.ok) {
+                document.getElementById('commentText').value = '';
+                loadComments();
+            }
+        });
+
+        document.getElementById('searchInput').addEventListener('input', () => {
+            renderFilteredComments();
+        });
+
+        loadComments();
+    </script>
+</body>
+
+</html>
