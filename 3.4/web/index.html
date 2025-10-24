@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Image Upload & Preview</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .image-preview {
+            max-width: 400px;
+            margin-top: 10px;
+            display: block;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .variant-container {
+            margin-top: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 15px;
+        }
+
+        .variant-container h3 {
+            margin: 5px 0;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            max-width: 300px;
+        }
+
+        form input[type="file"] {
+            margin-bottom: 10px;
+        }
+
+        form button {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #007bff;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        form button:hover {
+            background: #0056b3;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 5px;
+        }
+
+        .download-btn {
+            margin-top: 8px;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 5px;
+            background: #28a745;
+            color: white;
+            cursor: pointer;
+        }
+
+        .download-btn:hover {
+            background: #1e7e34;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Upload Image</h1>
+    <form id="uploadForm">
+        <input type="file" name="file" id="fileInput" required />
+        <button type="submit">Upload</button>
+
+        <div class="checkbox-group">
+            <label><input type="checkbox" name="resize" /> Resize</label>
+            <label><input type="checkbox" name="thumbnail" /> Thumbnail</label>
+            <label><input type="checkbox" name="watermark" /> Watermark</label>
+        </div>
+    </form>
+
+    <div id="results"></div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const resultsDiv = document.getElementById('results');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) return alert('Select a file!');
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('resize', form.resize.checked);
+            formData.append('thumbnail', form.thumbnail.checked);
+            formData.append('watermark', form.watermark.checked);
+
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const json = await res.json();
+                const fileId = json['File upload'];
+
+                resultsDiv.innerHTML = '';
+
+                const variants = [];
+                if (form.resize.checked) variants.push('resized');
+                if (form.thumbnail.checked) variants.push('thumbnail');
+                if (form.watermark.checked) variants.push('watermarked');
+                if (variants.length === 0) variants.push('resized');
+
+                variants.forEach(variant => {
+                    const container = document.createElement('div');
+                    container.className = 'variant-container';
+                    const title = document.createElement('h3');
+                    title.textContent = variant.charAt(0).toUpperCase() + variant.slice(1);
+
+                    const img = document.createElement('img');
+                    img.className = 'image-preview';
+
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'download-btn';
+                    downloadBtn.textContent = 'Download';
+                    downloadBtn.disabled = true;
+
+                    downloadBtn.addEventListener('click', () => {
+                        const link = document.createElement('a');
+                        link.href = img.src;
+                        link.download = `${variant}-${fileId}.jpeg`;
+                        link.click();
+                    });
+
+                    container.appendChild(title);
+                    container.appendChild(img);
+                    container.appendChild(downloadBtn);
+                    resultsDiv.appendChild(container);
+
+                    pollImage(fileId, variant, img, downloadBtn, 2000);
+                });
+
+            } catch (err) {
+                alert('Upload failed: ' + err);
+            }
+        });
+
+        async function pollImage(fileId, variant, imgElement, downloadBtn, interval) {
+            const url = `/image/${fileId}?variant=${variant}`;
+
+            const check = async () => {
+                try {
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        const objectURL = URL.createObjectURL(blob);
+                        imgElement.src = objectURL;
+                        downloadBtn.disabled = false;
+                    } else {
+                        setTimeout(check, interval);
+                    }
+                } catch (err) {
+                    console.error(`Error fetching ${variant}:`, err);
+                    setTimeout(check, interval);
+                }
+            };
+
+            check();
+        }
+    </script>
+</body>
+
+</html>
