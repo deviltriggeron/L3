@@ -7,13 +7,6 @@ import (
 	"eventbooker/internal/middleware"
 )
 
-/*
-– POST /events — создание мероприятия;
-– POST /events/{id}/book — бронирование места;
-– POST /events/{id}/confirm — оплата брони (если мероприятие требует этого);
-– GET /events/{id} — получение информации о мероприятии и свободных
-*/
-
 func NewEventBookRouter(h *handler.EventBookHandler) *mux.Router {
 	r := mux.NewRouter()
 	r.Use(middleware.LoggingMiddleware)
