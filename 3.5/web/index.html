@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventBook</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        input,
+        button {
+            margin: 5px 0;
+            padding: 5px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        pre {
+            background: #f0f0f0;
+            padding: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>EventBook Interface</h1>
+
+    <div class="section">
+        <h2>Create User</h2>
+        <input type="text" id="username" placeholder="User Name" />
+        <button id="btnCreateUser">Create User</button>
+        <p id="createUserResult"></p>
+    </div>
+
+    <div class="section">
+        <h2>Create Event</h2>
+        <input type="text" id="eventInfo" placeholder="Event Info" />
+        <input type="datetime-local" id="eventDate" />
+        <input type="number" id="seatsCount" placeholder="Seats Count" />
+        <input type="number" id="price" placeholder="Price" />
+        <input type="text" id="organizerID" placeholder="Organizer UserID" />
+        <button id="btnCreateEvent">Create Event</button>
+        <p id="createEventResult"></p>
+    </div>
+
+    <div class="section">
+        <h2>Book Event</h2>
+        <input type="text" id="bookEventID" placeholder="Event ID" />
+        <input type="text" id="bookUserID" placeholder="User ID" />
+        <button id="btnBookEvent">Book</button>
+        <p id="bookResult"></p>
+    </div>
+
+    <div class="section">
+        <h2>Pay for Booking</h2>
+        <input type="text" id="payBookingID" placeholder="Booking ID" />
+        <input type="text" id="payEventID" placeholder="Event ID" />
+        <button id="btnPayBooking">Pay</button>
+        <p id="payResult"></p>
+    </div>
+
+    <div class="section">
+        <h2>Get Event</h2>
+        <input type="text" id="getEventID" placeholder="Event ID" />
+        <button id="btnGetEvent">Get Event</button>
+        <pre id="getEventResult"></pre>
+    </div>
+
+    <script>
+        const baseURL = window.location.origin;
+
+        document.getElementById("btnCreateUser").addEventListener("click", async () => {
+            const name = document.getElementById("username").value;
+            const res = await fetch(baseURL + "/users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(name)
+            });
+            const data = await res.json();
+            document.getElementById("createUserResult").innerText = JSON.stringify(data, null, 2);
+        });
+
+        document.getElementById("btnCreateEvent").addEventListener("click", async () => {
+            const eventInfo = document.getElementById("eventInfo").value;
+            const eventDate = document.getElementById("eventDate").value;
+            const seatsCount = parseInt(document.getElementById("seatsCount").value);
+            const price = parseFloat(document.getElementById("price").value);
+            const organizerID = document.getElementById("organizerID").value;
+
+            const event = {
+                date: new Date(eventDate).toISOString(),
+                event_info: eventInfo,
+                seats_count: seatsCount,
+                for_free: price === 0,
+                price: price,
+                organizer: { UserID: organizerID }
+            };
+
+            const res = await fetch(baseURL + "/events", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(event)
+            });
+            const data = await res.json();
+            document.getElementById("createEventResult").innerText = JSON.stringify(data, null, 2);
+        });
+
+        document.getElementById("btnBookEvent").addEventListener("click", async () => {
+            const eventID = document.getElementById("bookEventID").value;
+            const userID = document.getElementById("bookUserID").value;
+
+            const res = await fetch(`${baseURL}/events/${eventID}/book`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(userID)
+            });
+            const data = await res.json();
+            document.getElementById("bookResult").innerText = JSON.stringify(data, null, 2);
+        });
+
+        document.getElementById("btnPayBooking").addEventListener("click", async () => {
+            const bookingID = document.getElementById("payBookingID").value;
+            const eventID = document.getElementById("payEventID").value;
+
+            const res = await fetch(`${baseURL}/events/${bookingID}/confirm`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(eventID)
+            });
+            const data = await res.json();
+            document.getElementById("payResult").innerText = JSON.stringify(data, null, 2);
+        });
+
+        document.getElementById("btnGetEvent").addEventListener("click", async () => {
+            const eventID = document.getElementById("getEventID").value;
+            const res = await fetch(`${baseURL}/events/${eventID}`);
+            const data = await res.json();
+            document.getElementById("getEventResult").innerText = JSON.stringify(data, null, 2);
+        });
+    </script>
+
+</body>
+
+</html>
