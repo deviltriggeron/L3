@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Tracker UI</title>
+    <style>
+        body {
+            max-width: 900px;
+            margin: 40px auto;
+            font-family: sans-serif;
+        }
+
+        input,
+        select,
+        button {
+            padding: 6px;
+            margin: 6px 0;
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #aaa;
+            padding: 6px;
+            text-align: left;
+        }
+
+        .box {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 25px;
+        }
+
+        .btn-small {
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Finance Tracker</h1>
+
+    <div class="box">
+        <h2 id="form-title">Add Item</h2>
+
+        <input type="hidden" id="edit-id" />
+
+        <select id="type">
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+        </select>
+
+        <input id="amount" type="number" step="0.01" placeholder="Amount" />
+        <input id="category" type="text" placeholder="Category" />
+        <input id="description" type="text" placeholder="Description" />
+        <input id="date" type="datetime-local" />
+
+        <button onclick="submitItem()">Save</button>
+        <p id="add-result"></p>
+    </div>
+
+    <div class="box">
+        <h2>Items</h2>
+
+        <input id="f-from" type="date" placeholder="From date" />
+        <input id="f-to" type="date" placeholder="To date" />
+        <input id="f-category" type="text" placeholder="Category" />
+        <select id="f-type">
+            <option value="">All types</option>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+        </select>
+        <input id="f-limit" type="number" placeholder="Limit" />
+        <input id="f-offset" type="number" placeholder="Offset" />
+
+        <button onclick="loadItems()">Load Items</button>
+
+        <table id="items-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="box">
+        <h2>Get Item by ID</h2>
+        <input id="find-id" type="text" placeholder="Enter item ID" />
+        <button onclick="loadOne()">Find</button>
+        <pre id="found-item"></pre>
+    </div>
+
+    <div class="box">
+        <h2>Analytics</h2>
+
+        <input id="a-from" type="date" placeholder="From" />
+        <input id="a-to" type="date" placeholder="To" />
+        <input id="a-category" type="text" placeholder="Category" />
+        <select id="a-type">
+            <option value="">All types</option>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+        </select>
+
+        <button onclick="loadAnalytics()">Get Analytics</button>
+
+        <pre id="analytics-output"></pre>
+    </div>
+
+    <script>
+        const API = "http://localhost:8080";
+
+        function submitItem() {
+            const id = document.getElementById("edit-id").value;
+
+            const payload = {
+                type: document.getElementById("type").value,
+                amount: parseFloat(document.getElementById("amount").value),
+                category: document.getElementById("category").value,
+                description: document.getElementById("description").value,
+                date: new Date(document.getElementById("date").value).toISOString()
+            };
+
+            const url = id ? `${API}/items/${id}` : `${API}/items`;
+            const method = id ? "PUT" : "POST";
+
+            fetch(url, {
+                method: method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            })
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById("add-result").innerText = id
+                        ? "✅ Updated"
+                        : "✅ Added: " + JSON.stringify(data);
+
+                    document.getElementById("edit-id").value = "";
+                    document.getElementById("form-title").innerText = "Add Item";
+                    loadItems();
+                })
+                .catch(err => alert("Error: " + err));
+        }
+
+        function loadItems() {
+            let q = [];
+            const f = v => v ? q.push(v) : null;
+
+            const from = document.getElementById("f-from").value;
+            const to = document.getElementById("f-to").value;
+            const category = document.getElementById("f-category").value;
+            const type = document.getElementById("f-type").value;
+            const limit = document.getElementById("f-limit").value;
+            const offset = document.getElementById("f-offset").value;
+
+            if (from) q.push("from=" + from);
+            if (to) q.push("to=" + to);
+            if (category) q.push("category=" + category);
+            if (type) q.push("type=" + type);
+            if (limit) q.push("limit=" + limit);
+            if (offset) q.push("offset=" + offset);
+
+            const url = API + "/items" + (q.length ? "?" + q.join("&") : "");
+
+            fetch(url)
+                .then(r => r.json())
+                .then(items => {
+                    const tbody = document.querySelector("#items-table tbody");
+                    tbody.innerHTML = "";
+                    items.forEach(item => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                    <td>${item.id}</td>
+                    <td>${item.type}</td>
+                    <td>${item.amount}</td>
+                    <td>${item.category}</td>
+                    <td>${item.description}</td>
+                    <td>${item.date}</td>
+                    <td>
+                        <button class="btn-small" onclick="editItem('${item.id}', '${item.type}', '${item.amount}', '${item.category}', '${item.description}', '${item.date}')">Edit</button>
+                        <button class="btn-small" onclick="deleteItem('${item.id}')">Delete</button>
+                    </td>
+                `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(err => alert("Load error: " + err));
+        }
+
+        function loadOne() {
+            const id = document.getElementById("find-id").value;
+            if (!id) return;
+
+            fetch(`${API}/items/${id}`)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById("found-item").innerText =
+                        JSON.stringify(data, null, 2);
+                })
+                .catch(err => alert("Error: " + err));
+        }
+
+
+        function deleteItem(id) {
+            fetch(`${API}/items/${id}`, {
+                method: "DELETE"
+            })
+                .then(r => r.json())
+                .then(() => loadItems())
+                .catch(err => alert("Delete error: " + err));
+        }
+
+        function editItem(id, type, amount, category, desc, date) {
+            document.getElementById("edit-id").value = id;
+            document.getElementById("form-title").innerText = "Edit Item";
+
+            document.getElementById("type").value = type;
+            document.getElementById("amount").value = amount;
+            document.getElementById("category").value = category;
+            document.getElementById("description").value = desc;
+
+            const d = new Date(date);
+            document.getElementById("date").value = d.toISOString().slice(0, 16);
+        }
+
+        function loadAnalytics() {
+            const from = document.getElementById("a-from").value;
+            const to = document.getElementById("a-to").value;
+            const category = document.getElementById("a-category").value;
+            const type = document.getElementById("a-type").value;
+
+            let q = [];
+            if (from) q.push("from=" + from);
+            if (to) q.push("to=" + to);
+            if (category) q.push("category=" + category);
+            if (type) q.push("type=" + type);
+
+            const url = API + "/analytics" + (q.length ? "?" + q.join("&") : "");
+
+            fetch(url)
+                .then(r => r.json())
+                .then(a => {
+                    document.getElementById("analytics-output").innerText =
+                        "Sum: " + a.Sum + "\n" +
+                        "Average: " + a.Average + "\n" +
+                        "Count: " + a.Count + "\n" +
+                        "Median: " + a.Median + "\n" +
+                        "90% Percentile: " + a.Percentile;
+                })
+                .catch(err => alert("Error: " + err));
+        }
+    </script>
+
+</body>
+
+</html>
