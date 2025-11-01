@@ -7,14 +7,6 @@ import (
 	"sales-tracker/internal/middleware"
 )
 
-/*
-– CRUD-операции (например, финансовые транзакции или продажи);
-– POST /items;
-– GET /items;
-– PUT /items/{id};
-– DELETE /items/{id}
-*/
-
 func NewRouter(h *handler.TrackerHandler) *mux.Router {
 	r := mux.NewRouter()
 	r.Use(middleware.MiddlewareLogging)

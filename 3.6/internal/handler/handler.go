@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"sales-tracker/internal/domain"
-	"sales-tracker/internal/usecase"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+
+	"sales-tracker/internal/domain"
+	"sales-tracker/internal/usecase"
 )
 
 type TrackerHandler struct {
