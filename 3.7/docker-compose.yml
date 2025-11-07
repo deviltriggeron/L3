@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:15
+    env_file: config.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./storage:/docker-entrypoint-initdb.d
+      - storage_data:/var/lib/postgresql/data
+    stop_grace_period: 3s
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    env_file: config.env
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 5s
+
+volumes:
+  storage_data:
